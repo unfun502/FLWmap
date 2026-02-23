@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture of Frank Lloyd Wright</title>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Josefin+Sans:wght@300;400;600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'DM Sans',sans-serif; background:#2a241e; color:#e8dfd0; overflow:hidden; height:100vh; }
+  #map { position:absolute; top:0; left:380px; right:0; bottom:0; }
+
+  .sidebar {
+    position:absolute; left:0; top:0; bottom:0; width:380px; z-index:10;
+    background:#f2ead8;
+    border-right:3px solid #8b6914;
+    display:flex; flex-direction:column;
+  }
+  .sidebar-header {
+    padding:28px 24px 20px;
+    border-bottom:none;
+    background:#3b322a;
+  }
+  .sidebar-header h2 {
+    font-family:'Josefin Sans',sans-serif; font-weight:300;
+    font-size:13px; letter-spacing:5px; text-transform:uppercase;
+    color:#c4a44a; margin-bottom:4px;
+  }
+  .sidebar-header h1 {
+    font-family:'Playfair Display',serif; font-size:30px; font-weight:700;
+    line-height:1.15; color:#f0e8d8;
+  }
+  .sidebar-header h1 em { font-weight:400; font-style:italic; color:#c49a6a; }
+  .sidebar-header p {
+    font-family:'Josefin Sans',sans-serif; font-weight:300;
+    font-size:11px; letter-spacing:4px; text-transform:uppercase;
+    color:#9a8b72; margin-top:6px;
+  }
+  .decorative-bar {
+    height:4px; flex-shrink:0;
+    background:repeating-linear-gradient(90deg, #c4a44a 0px, #c4a44a 8px, #8b6914 8px, #8b6914 12px, #d4523a 12px, #d4523a 20px, #3a6b4a 20px, #3a6b4a 28px, #c4a44a 28px);
+  }
+  .sidebar-content { padding:16px 24px 100px; flex:1; overflow-y:auto; }
+
+  .search-box { position:relative; margin-bottom:20px; }
+  .search-box input {
+    width:100%; padding:10px 14px 10px 38px;
+    background:#faf6ee; border:1px solid #c4b99a;
+    border-radius:4px; color:#3a3228; font-family:'DM Sans',sans-serif; font-size:14px;
+    outline:none; transition:border-color 0.2s;
+  }
+  .search-box input:focus { border-color:#a0522d; }
+  .search-box input::placeholder { color:#9a8b72; }
+  .search-box svg {
+    position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; stroke:#9a8b72;
+  }
+
+  .filter-section { margin-bottom:18px; }
+  .filter-label {
+    font-family:'Josefin Sans',sans-serif; font-weight:600;
+    font-size:11px; letter-spacing:3px; text-transform:uppercase;
+    color:#a0522d; margin-bottom:8px;
+    border-bottom:1px solid #d4c9b0; padding-bottom:6px;
+  }
+  .filter-tags { display:flex; flex-wrap:wrap; gap:6px; }
+  .filter-tag {
+    padding:5px 12px; font-size:12px; font-family:'DM Sans',sans-serif;
+    background:#faf6ee; border:1px solid #c4b99a;
+    color:#5a4f42; border-radius:3px; cursor:pointer; transition:all 0.2s;
+    user-select:none;
+  }
+  .filter-tag:hover { border-color:#a0522d; color:#3a3228; }
+  .filter-tag.active { background:#a0522d; border-color:#a0522d; color:#fff; }
+
+
+
+  .bottom-bar {
+    position:absolute; bottom:0; left:0; width:380px; z-index:11;
+    padding:12px 24px; background:#e8dfd0;
+    border-top:1px solid #c4b99a;
+    border-right:3px solid #8b6914;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .bottom-bar .count {
+    font-family:'Josefin Sans',sans-serif; font-size:12px;
+    letter-spacing:2px; color:#5a4f42;
+  }
+  .bottom-bar .count strong { color:#a0522d; font-weight:700; }
+  .clear-btn {
+    padding:5px 14px; font-size:11px; font-family:'Josefin Sans',sans-serif;
+    letter-spacing:2px; text-transform:uppercase;
+    background:#faf6ee; border:1px solid #c4b99a;
+    color:#5a4f42; border-radius:3px; cursor:pointer; transition:all 0.2s;
+  }
+  .clear-btn:hover { border-color:#a0522d; color:#3a3228; }
+
+  /* CIRCULAR IMAGE MARKERS */
+  .marker-wrap {
+    display:flex; flex-direction:column; align-items:center; cursor:pointer;
+  }
+  .marker-circle {
+    width:52px; height:52px; border-radius:50%;
+    border:3px solid #5a4a38; overflow:hidden;
+    background:#3b322a; transition:transform 0.2s ease, border-color 0.2s ease;
+    box-shadow:0 2px 8px rgba(0,0,0,0.5);
+  }
+  .marker-wrap:hover .marker-circle { transform:scale(1.25); border-color:#c4a44a; }
+  .marker-circle img { width:100%; height:100%; object-fit:cover; display:block; }
+  .marker-label {
+    font-family:'Josefin Sans',sans-serif; font-weight:600;
+    font-size:9px; letter-spacing:1.5px; text-transform:uppercase;
+    color:#2a2420; text-shadow:0 0 3px rgba(242,234,216,0.9), 0 0 6px rgba(242,234,216,0.7);
+    text-align:center; white-space:nowrap;
+    margin-top:4px; pointer-events:none;
+  }
+
+  /* POPUP */
+  .mapboxgl-popup-content {
+    background:#f2ead8 !important; color:#2a2420 !important;
+    border:3px solid #8b5a2b; border-radius:4px !important;
+    padding:0 !important; min-width:260px; max-width:300px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.5) !important;
+    overflow:hidden;
+  }
+  .mapboxgl-popup-tip { border-top-color:#8b5a2b !important; }
+  .mapboxgl-popup-close-button {
+    color:#f0e8d8 !important; font-size:20px; padding:4px 8px;
+    z-index:2; background:rgba(42,36,32,0.6) !important; border-radius:0 0 0 4px;
+    width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+  }
+  .mapboxgl-popup-close-button:hover { color:#fff !important; background:rgba(42,36,32,0.9) !important; }
+  .popup-header { background:#3b322a; padding:14px 16px 12px; }
+  .popup-name {
+    font-family:'Playfair Display',serif; font-size:17px; font-weight:700;
+    color:#f0e8d8; margin-bottom:3px; line-height:1.25;
+  }
+  .popup-location {
+    font-family:'Josefin Sans',sans-serif; font-size:11px;
+    letter-spacing:3px; text-transform:uppercase; color:#9a8b72;
+  }
+  .popup-divider {
+    height:4px;
+    background:repeating-linear-gradient(90deg, #c4a44a 0px, #c4a44a 8px, #8b6914 8px, #8b6914 12px, #d4523a 12px, #d4523a 20px, #3a6b4a 20px, #3a6b4a 28px, #c4a44a 28px);
+  }
+  .popup-body { padding:12px 16px 14px; }
+  .popup-badges { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .popup-badge {
+    font-size:11px; padding:4px 10px; border-radius:3px;
+    font-family:'Josefin Sans',sans-serif; font-weight:600;
+    letter-spacing:1.5px; text-transform:uppercase;
+  }
+  .popup-badge.year-badge { background:#a0522d; color:#fff; }
+  .popup-badge.type-badge { background:transparent; border:1.5px solid #8b7b6a; color:#5a4f42; }
+  .popup-badge.style-badge { background:transparent; border:1.5px solid #8b7b6a; color:#5a4f42; }
+  .popup-badge.unesco-badge { background:rgba(212,82,58,0.12); color:#a0422a; border:1.5px solid #d4523a; }
+  .popup-badge.tours-badge { background:rgba(75,140,75,0.12); color:#2d6a2d; border:1.5px solid #4a8c4a; }
+  .popup-desc { font-family:'DM Sans',sans-serif; font-size:14px; line-height:1.5; color:#3a3228; }
+  .mapboxgl-ctrl-attrib { font-size:10px !important; }
+  /* Time Lapse Button */
+  .timelapse-btn {
+    display:flex; align-items:center; gap:6px; margin-top:8px; width:100%;
+    padding:8px 14px; border:1.5px dashed #a0522d; border-radius:8px; cursor:pointer;
+    font:600 12.5px/1 'Georgia',serif; letter-spacing:0.3px; color:#a0522d;
+    background:#faf6ee; transition:all 0.2s;
+  }
+  .timelapse-btn:hover { background:#a0522d; color:#faf6ee; border-style:solid; }
+  .timelapse-btn:active { transform:scale(0.98); }
+  .timelapse-btn.running { background:#a0522d; color:#faf6ee; border-style:solid; }
+  .timelapse-btn .tl-icon { font-size:10px; }
+
+  /* Time Lapse Overlay */
+  .tl-overlay {
+    display:none; position:absolute; top:20px; left:50%; transform:translateX(-50%);
+    z-index:10; text-align:center; pointer-events:none;
+    background:rgba(59,50,42,0.88); border-radius:14px; padding:16px 32px 14px;
+    border:2px solid #c49a6a; box-shadow:0 6px 30px rgba(0,0,0,0.4);
+    backdrop-filter:blur(6px); min-width:200px;
+  }
+  .tl-overlay.active { display:block; animation:tl-fadeIn 0.4s ease; }
+  .tl-year {
+    font:700 52px/1 'Georgia',serif; color:#f2ead8;
+    text-shadow:0 2px 12px rgba(196,154,106,0.6);
+    transition:all 0.3s ease;
+  }
+  .tl-name { font:italic 15px/1.3 'Georgia',serif; color:#c49a6a; margin-top:4px; min-height:20px; }
+  .tl-progress-wrap {
+    margin-top:10px; height:4px; background:rgba(242,234,216,0.15);
+    border-radius:2px; overflow:hidden;
+  }
+  .tl-progress { height:100%; width:0; background:linear-gradient(90deg,#c4613a,#c49a6a); border-radius:2px; transition:width 0.3s ease; }
+  .tl-counter { font:11px/1 sans-serif; color:rgba(242,234,216,0.5); margin-top:6px; letter-spacing:1px; }
+  @keyframes tl-fadeIn { from{opacity:0;transform:translateX(-50%) translateY(-8px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+  /* Marker highlight pulse during time lapse */
+  .marker-wrap.tl-highlight .marker-circle {
+    border-color:#f5d67b !important;
+    box-shadow:0 0 0 4px rgba(245,214,123,0.5), 0 0 20px rgba(245,214,123,0.3);
+    transform:scale(1.35);
+    transition:all 0.3s ease;
+  }
+  .marker-wrap.tl-highlight .marker-label {
+    color:#f5d67b; font-weight:700; text-shadow:0 1px 6px rgba(0,0,0,0.9);
+  }
+  .marker-wrap.tl-dim { opacity:0.45; transition:opacity 0.3s; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h2>Architecture of</h2>
+    <h1>Frank Lloyd <em>Wright</em></h1>
+    <p>Built Works Across America</p>
+  </div>
+  <div class="decorative-bar"></div>
+  <div class="sidebar-content">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search" placeholder="Search buildings, cities, states...">
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-label">Architectural Style</div>
+      <div class="filter-tags" id="style-filters">
+        <div class="filter-tag" data-value="Prairie">Prairie</div>
+        <div class="filter-tag" data-value="Usonian">Usonian</div>
+        <div class="filter-tag" data-value="Textile Block">Textile Block</div>
+        <div class="filter-tag" data-value="Organic">Organic</div>
+        <div class="filter-tag" data-value="Other">Other</div>
+      </div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">Era Built</div>
+      <div class="filter-tags" id="era-filters">
+        <div class="filter-tag" data-value="Early">Early 1887–1909</div>
+        <div class="filter-tag" data-value="Mid">Mid 1910–1935</div>
+        <div class="filter-tag" data-value="Late">Late 1936–1959</div>
+      </div>
+      <button class="timelapse-btn" id="timelapse-btn">
+        <span class="tl-icon">▶</span> Virtual Time Lapse
+      </button>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">Designation</div>
+      <div class="filter-tags" id="designation-filters">
+        <div class="filter-tag" data-value="UNESCO">★ UNESCO World Heritage</div>
+      </div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">Visiting</div>
+      <div class="filter-tags" id="tours-filters">
+        <div class="filter-tag" data-value="tours">Open for Tours</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <div class="count">Showing <strong id="visible-count">0</strong> of <strong id="total-count">0</strong></div>
+  <button class="clear-btn" id="clear-all">Clear All</button>
+</div>
+
+<div id="map">
+  <div class="tl-overlay" id="tl-overlay">
+    <div class="tl-year" id="tl-year">1890</div>
+    <div class="tl-name" id="tl-name"></div>
+    <div class="tl-progress-wrap">
+      <div class="tl-progress" id="tl-progress"></div>
+    </div>
+    <div class="tl-counter" id="tl-counter">1 / 37</div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// IMAGE BASE — ArchDaily/HomeAdvisor illustrations
+// ============================================================
+const I = "https://images.adsttc.com/media/images/5d92/";
+
+// ============================================================
+// 37 BUILDINGS from ArchDaily
+// Fields: name, lat, lng, city, state, year, type, style, unesco, img, desc
+// ============================================================
+const BUILDINGS = [
+  { name:"Rosenbaum House", lat:34.7998, lng:-87.6773, city:"Florence", state:"AL", year:1940, type:"Residential", style:"Usonian", unesco:false, tours:true,
+    img:I+"3cb8/284d/d1b8/da00/027e/medium_jpg/01_Frank-Lloyd-Wright-homes-Alabama-RosenbaumHouse.jpg?1569864878",
+    desc:"One of the finest examples of Usonian architecture — the only Wright building in Alabama." },
+  { name:"David & Gladys Wright House", lat:33.4639, lng:-111.9835, city:"Phoenix", state:"AZ", year:1952, type:"Residential", style:"Organic", unesco:false, tours:false,
+    img:I+"3cdb/284d/d1b8/da00/0282/medium_jpg/02_Frank-Lloyd-Wright-homes-Arizona-David_GladysWrightHouse.jpg?1569864917",
+    desc:"A spiral-ramped residence Wright designed for his son David, perched on a citrus grove in the desert." },
+  { name:"Bachman-Wilson House", lat:36.3729, lng:-94.2088, city:"Bentonville", state:"AR", year:1954, type:"Residential", style:"Usonian", unesco:false, tours:true,
+    img:I+"3ce3/284d/d1d6/fc00/00d4/medium_jpg/03_Frank-Lloyd-Wright-homes-Arkansas-Bachman-WilsonHouseatCrystalBridges.jpg?1569864925",
+    desc:"Relocated from New Jersey to Crystal Bridges Museum — a Usonian gem saved from flood damage." },
+  { name:"Hollyhock House", lat:34.0824, lng:-118.2945, city:"Los Angeles", state:"CA", year:1921, type:"Residential", style:"Other", unesco:true, tours:true,
+    img:I+"3cee/284d/d1b8/da00/0283/medium_jpg/04_Frank-Lloyd-Wright-homes-California-HollyhockHouse.jpg?1569864935",
+    desc:"Wright's first LA commission — a Mayan Revival residence crowned with abstract hollyhock ornamentation." },
+  { name:"Rayward-Shepherd House", lat:41.1468, lng:-73.4956, city:"New Canaan", state:"CT", year:1955, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3cfa/284d/d1d6/fc00/00d5/medium_jpg/05_Frank-Lloyd-Wright-homes-Connecticut-Rayward-ShepherdHouse.jpg?1569864947",
+    desc:"A sprawling circular-plan Usonian home on 72 acres — one of Wright's most expensive residential commissions." },
+  { name:"Dudley Spencer House", lat:39.7518, lng:-75.5645, city:"Wilmington", state:"DE", year:1956, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3d05/284d/d1b8/da00/0284/medium_jpg/06_Frank-Lloyd-Wright-homes-Delaware-DudleySpencerHouse.jpg?1569864959",
+    desc:"A late Usonian home — one of Wright's final residential designs with characteristic horizontal lines." },
+  { name:"Lewis Spring House", lat:28.0405, lng:-81.9536, city:"Lakeland", state:"FL", year:1954, type:"Educational", style:"Organic", unesco:false, tours:true,
+    img:I+"3d10/284d/d1d6/fc00/00d6/medium_jpg/07_Frank-Lloyd-Wright-homes-Florida-LewisSpringHouse.jpg?1569864970",
+    desc:"Part of Florida Southern College's 'Child of the Sun' — the largest single-site collection of Wright architecture." },
+  { name:"Frank Lloyd Wright House", lat:21.3069, lng:-157.8583, city:"Honolulu", state:"HI", year:1954, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3d1a/284d/d1b8/da00/0285/medium_jpg/08_Frank-Lloyd-Wright-homes-Hawaii-FrankLloydWrightHouse.jpg?1569864981",
+    desc:"A rare Wright design in Hawaii — bringing organic architecture to the tropical Pacific." },
+  { name:"Archie Teater Studio", lat:42.9271, lng:-114.9513, city:"Bliss", state:"ID", year:1952, type:"Studio/Home", style:"Usonian", unesco:false, tours:false,
+    img:I+"3d26/284d/d1d6/fc00/00d7/medium_jpg/09_Frank-Lloyd-Wright-homes-Idaho-ArchieTeaterStudio.jpg?1569864992",
+    desc:"A compact studio for landscape painter Archie Teater overlooking the Snake River canyon." },
+  { name:"Avery Coonley House", lat:41.8264, lng:-87.8192, city:"Riverside", state:"IL", year:1908, type:"Residential", style:"Prairie", unesco:false, tours:false,
+    img:I+"3d2f/284d/d1b8/da00/0286/medium_jpg/10_Frank-Lloyd-Wright-homes-Illinois-AveryCoonleyHouse.jpg?1569865002",
+    desc:"Wright called it his most successful Prairie house — a lavish estate with geometric art-glass throughout." },
+  { name:"K.C. DeRhodes House", lat:41.6764, lng:-86.2520, city:"South Bend", state:"IN", year:1906, type:"Residential", style:"Prairie", unesco:false, tours:false,
+    img:I+"3d3b/284d/d1b8/da00/0287/medium_jpg/11_Frank-Lloyd-Wright-homes-Indiana-K.C.DeRhodesHouse.jpg?1569865013",
+    desc:"An early Prairie home featuring Wright's signature horizontal emphasis and art-glass windows." },
+  { name:"Stockman House", lat:43.1536, lng:-93.2010, city:"Mason City", state:"IA", year:1908, type:"Residential", style:"Prairie", unesco:false, tours:true,
+    img:I+"3d46/284d/d1d6/fc00/00d8/medium_jpg/12_Frank-Lloyd-Wright-homes-Iowa-StockmanHouse.jpg?1569865024",
+    desc:"A compact Prairie gem — the first Wright house in Iowa, now a museum." },
+  { name:"Allen-Lambe House", lat:37.6780, lng:-97.2878, city:"Wichita", state:"KS", year:1915, type:"Residential", style:"Prairie", unesco:false, tours:true,
+    img:I+"3d50/284d/d1b8/da00/0288/medium_jpg/13_Frank-Lloyd-Wright-homes-Kansas-Allen%E2%80%93LambeHouse.jpg?1569865034",
+    desc:"Considered the last of Wright's Prairie houses — elegant composition with integrated gardens." },
+  { name:"Zeigler House", lat:38.2009, lng:-84.8733, city:"Frankfort", state:"KY", year:1910, type:"Residential", style:"Prairie", unesco:false, tours:false,
+    img:I+"3d5c/284d/d1b8/da00/0289/medium_jpg/14_Frank-Lloyd-Wright-homes-Kentucky-ReverendJesseR.ZeiglerHouse.jpg?1569865046",
+    desc:"A modest Prairie bungalow in Kentucky's capital — Wright's only building in the state." },
+  { name:"Robert Llewellyn Wright House", lat:38.9601, lng:-77.1047, city:"Bethesda", state:"MD", year:1953, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3d67/284d/d1d6/fc00/00d9/medium_jpg/15_Frank-Lloyd-Wright-homes-Maryland-RobertLlewellynWrightHouse.jpg?1569865056",
+    desc:"A hemicycle Usonian home Wright designed for his son — concrete block nestled into a wooded hillside." },
+  { name:"Theodore Baird House", lat:42.3732, lng:-72.5199, city:"Amherst", state:"MA", year:1940, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3d6e/284d/d1b8/da00/028a/medium_jpg/16_Frank-Lloyd-Wright-homes-Massachusetts-TheodoreBairdHouse.jpg?1569865065",
+    desc:"An early Usonian home for an English professor — Wright's only completed building in Massachusetts." },
+  { name:"Robert & Rae Levin House", lat:42.2917, lng:-85.5872, city:"Kalamazoo", state:"MI", year:1949, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3d78/284d/d1d6/fc00/00da/medium_jpg/17_Frank-Lloyd-Wright-homes-Michigan-RobertandRaeLevinHouse.jpg?1569865074",
+    desc:"A Usonian home featuring Wright's signature cantilevered roof and natural materials." },
+  { name:"Elam House", lat:43.6666, lng:-92.9746, city:"Austin", state:"MN", year:1951, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3d84/284d/d1d6/fc00/00db/medium_jpg/18_Frank-Lloyd-Wright-homes-Minnesota-ElamHouse.jpg?1569865085",
+    desc:"A late Usonian home characterized by its angular geometry and warm cypress interior." },
+  { name:"Charnley-Norwood House", lat:30.4013, lng:-88.8278, city:"Ocean Springs", state:"MS", year:1890, type:"Residential", style:"Other", unesco:false, tours:false,
+    img:I+"3d8e/284d/d1b8/da00/028b/medium_jpg/19_Frank-Lloyd-Wright-homes-Mississippi-Charnley-NorwoodHouse.jpg?1569865096",
+    desc:"An early Wright work from his time with Louis Sullivan — a charming seaside cottage on the Gulf Coast." },
+  { name:"Pappas House", lat:38.5906, lng:-90.3468, city:"St. Louis", state:"MO", year:1955, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3d9a/284d/d1d6/fc00/00dc/medium_jpg/20_Frank-Lloyd-Wright-homes-Missouri-PappasHouse.jpg?1569865108",
+    desc:"A late Usonian home featuring Wright's open floor plan and deep connection to the landscape." },
+  { name:"Harvey P. Sutton House", lat:40.2017, lng:-100.6243, city:"McCook", state:"NE", year:1907, type:"Residential", style:"Prairie", unesco:false, tours:false,
+    img:I+"3da4/284d/d1b8/da00/028c/medium_jpg/21_Frank-Lloyd-Wright-homes-Nebraska-HarveyP.andElizaSuttonHouse.jpg?1569865119",
+    desc:"A rare small-town Prairie house on the Great Plains — Wright's only work in Nebraska." },
+  { name:"Toufic H. Kalil House", lat:42.9956, lng:-71.4548, city:"Manchester", state:"NH", year:1955, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3daf/284d/d1b8/da00/028d/medium_jpg/22_Frank-Lloyd-Wright-homes-NewHampshire-TouficH.KalilHouse.jpg?1569865130",
+    desc:"A concrete-block Usonian Automatic home — the only Wright building in New Hampshire." },
+  { name:"J.A. Sweeton House", lat:39.9348, lng:-75.0307, city:"Cherry Hill", state:"NJ", year:1950, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3dba/284d/d1d6/fc00/00dd/medium_jpg/23_Frank-Lloyd-Wright-homes-NewJersey-J.A.SweetonResidence.jpg?1569865140",
+    desc:"A modest Usonian home in suburban New Jersey with Wright's signature flat roof and natural wood." },
+  { name:"Arnold Friedman House", lat:35.5723, lng:-105.6811, city:"Pecos", state:"NM", year:1945, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3dc4/284d/d1b8/da00/028e/medium_jpg/24_Frank-Lloyd-Wright-homes-NewMexico-ArnoldFriedmanHouse.jpg?1569865151",
+    desc:"Nicknamed 'Fir Tree' — a rustic mountain retreat blending into the landscape near Santa Fe." },
+  { name:"E.E. Boynton House", lat:43.1485, lng:-77.5898, city:"Rochester", state:"NY", year:1908, type:"Residential", style:"Prairie", unesco:false, tours:false,
+    img:I+"3dcc/284d/d1b8/da00/028f/medium_jpg/25_Frank-Lloyd-Wright-homes-NewYork-E.E.BoyntonHouse.jpg?1569865158",
+    desc:"One of Wright's finest eastern Prairie houses — a long, low composition with spectacular art-glass." },
+  { name:"Westcott House", lat:39.9304, lng:-83.7870, city:"Springfield", state:"OH", year:1908, type:"Residential", style:"Prairie", unesco:false, tours:true,
+    img:I+"3dd5/284d/d1d6/fc00/00de/medium_jpg/26_Frank-Lloyd-Wright-homes-Ohio-WestcottHouse.jpg?1569865167",
+    desc:"A grand Prairie residence with a long pergola — meticulously restored as a public museum." },
+  { name:"Richard Lloyd Jones House", lat:36.1284, lng:-95.9620, city:"Tulsa", state:"OK", year:1929, type:"Residential", style:"Textile Block", unesco:false, tours:false,
+    img:I+"3ddd/284d/d1b8/da00/0290/medium_jpg/27_Frank-Lloyd-Wright-homes-Oklahoma-RichardL.JonesHouse.jpg?1569865176",
+    desc:"Known as 'Westhope' — a striking textile-block home designed for his cousin, a newspaper publisher." },
+  { name:"Gordon House", lat:44.9985, lng:-122.7826, city:"Silverton", state:"OR", year:1964, type:"Residential", style:"Usonian", unesco:false, tours:true,
+    img:I+"3de6/284d/d1d6/fc00/00df/medium_jpg/28_Frank-Lloyd-Wright-homes-Oregon-GordonHouse.jpg?1569865184",
+    desc:"The only Wright building in the Pacific Northwest — saved from demolition and moved to the Oregon Garden." },
+  { name:"Fallingwater", lat:39.9064, lng:-79.4681, city:"Mill Run", state:"PA", year:1935, type:"Residential", style:"Organic", unesco:true, tours:true,
+    img:I+"3df4/284d/d1d6/fc00/00e0/medium_jpg/29_Frank-Lloyd-Wright-homes-Pennsylvania-Fallingwater.jpg?1569865196",
+    desc:"Wright's masterpiece cantilevered over a waterfall — widely considered the greatest American building." },
+  { name:"Auldbrass", lat:32.6890, lng:-80.8513, city:"Yemassee", state:"SC", year:1940, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3dfd/284d/d1b8/da00/0291/medium_jpg/30_Frank-Lloyd-Wright-homes-SouthCarolina-C.LeighStevensHouse.jpg?1569865208",
+    desc:"A sprawling plantation-style Usonian estate in the Carolina Lowcountry." },
+  { name:"Shavin House", lat:35.0456, lng:-85.3097, city:"Chattanooga", state:"TN", year:1952, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3e05/284d/d1d6/fc00/00e1/medium_jpg/31_Frank-Lloyd-Wright-homes-Tennessee-SeamourandGerteShavinHouse.jpg?1569865215",
+    desc:"A Usonian home perched on a hillside with dramatic views of Lookout Mountain." },
+  { name:"John Gillin Residence", lat:32.8350, lng:-96.8150, city:"Dallas", state:"TX", year:1950, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3e0e/284d/d1b8/da00/0292/medium_jpg/32_Frank-Lloyd-Wright-homes-Texas-JohnGillinResidence.jpg?1569865224",
+    desc:"One of Wright's largest residential commissions in the Southwest." },
+  { name:"Don Stromquist House", lat:40.8893, lng:-111.8808, city:"Bountiful", state:"UT", year:1958, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3e17/284d/d1d6/fc00/00e2/medium_jpg/33_Frank-Lloyd-Wright-homes-Utah-DonM.StromquistHouse.jpg?1569865232",
+    desc:"A late concrete-block Usonian home set against the Wasatch Mountains — Wright's only Utah work." },
+  { name:"Pope-Leighey House", lat:38.7340, lng:-77.1527, city:"Alexandria", state:"VA", year:1941, type:"Residential", style:"Usonian", unesco:false, tours:true,
+    img:I+"3e21/284d/d1b8/da00/0293/medium_jpg/34_Frank-Lloyd-Wright-homes-Virginia-Pope%E2%80%93LeigheyHouse.jpg?1569865244",
+    desc:"A modest Usonian gem relocated to Woodlawn Plantation to save it from highway construction." },
+  { name:"Chauncey Griggs House", lat:47.2529, lng:-122.4443, city:"Tacoma", state:"WA", year:1946, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3e2c/284d/d1d6/fc00/00e3/medium_jpg/35_Frank-Lloyd-Wright-homes-Washington-ChaunceyL.GriggsResidence.jpg?1569865254",
+    desc:"A Pacific Northwest Usonian with stone walls and a deep connection to the surrounding landscape." },
+  { name:"F.G. Bogk House", lat:43.0530, lng:-87.8954, city:"Milwaukee", state:"WI", year:1916, type:"Residential", style:"Prairie", unesco:false, tours:false,
+    img:I+"3e36/284d/d1b8/da00/0294/medium_jpg/36_Frank-Lloyd-Wright-homes-Wisconsin-F.G.BogkHouse.jpg?1569865265",
+    desc:"A refined late Prairie house — one of Wright's most elegant urban residences." },
+  { name:"Quintin Blair House", lat:44.5263, lng:-109.0565, city:"Cody", state:"WY", year:1952, type:"Residential", style:"Usonian", unesco:false, tours:false,
+    img:I+"3e42/284d/d1d6/fc00/00e4/medium_jpg/37_Frank-Lloyd-Wright-homes-Wyoming-QuintinBlairHouse.jpg?1569865276",
+    desc:"A modest Usonian home near Yellowstone — Wright's only building in Wyoming." },
+];
+
+// ============================================================
+const STATES = {AL:"Alabama",AZ:"Arizona",AR:"Arkansas",CA:"California",CT:"Connecticut",DE:"Delaware",FL:"Florida",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",NE:"Nebraska",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",SC:"South Carolina",TN:"Tennessee",TX:"Texas",UT:"Utah",VA:"Virginia",WA:"Washington",WI:"Wisconsin",WY:"Wyoming"};
+
+const STYLE_COLORS = {
+  "Prairie":"#c4613a", "Usonian":"#8ba44a", "Textile Block":"#c4a44a",
+  "Organic":"#4a7b8b", "Other":"#8b7b6a"
+};
+
+function getEra(y) { return y <= 1909 ? "Early" : y <= 1935 ? "Mid" : "Late"; }
+
+const st = { filters:{ style:new Set(), era:new Set(), unesco:false, tours:false }, search:"" };
+
+// ============================================================
+// MAP
+// ============================================================
+mapboxgl.accessToken = 'pk.eyJ1IjoiZGFuaWVsc2FuZGVycyIsImEiOiJjbTNldWVraGwwaTVjMnJwczR6ZDIwNDBtIn0.690F8S-igiH-uhkmc-KbOw';
+const map = new mapboxgl.Map({
+  container:'map',
+  style:'mapbox://styles/danielsanders/cmaspb28y006u01s33gzfcgig',
+  center:[-96,38], zoom:4, attributionControl:true
+});
+map.addControl(new mapboxgl.NavigationControl(),'bottom-right');
+
+// ============================================================
+// MARKERS
+// ============================================================
+let markers = [];
+
+function popupHTML(b) {
+  const u = b.unesco ? '<span class="popup-badge unesco-badge">★ UNESCO</span>' : '';
+  const t = b.tours ? '<span class="popup-badge tours-badge">Open for Tours</span>' : '';
+  return '<div class="popup-header"><div class="popup-name">'+b.name+'</div><div class="popup-location">'+b.city+', '+b.state+'</div></div><div class="popup-divider"></div><div class="popup-body"><div class="popup-badges"><span class="popup-badge year-badge">'+b.year+'</span><span class="popup-badge style-badge">'+b.style+'</span>'+u+t+'</div><div class="popup-desc">'+b.desc+'</div></div>';
+}
+
+function build() {
+  markers.forEach(m => m.marker.remove());
+  markers = [];
+  const list = BUILDINGS.filter(b => {
+    if (st.search && !((b.name+' '+b.city+' '+b.state+' '+(STATES[b.state]||'')).toLowerCase().includes(st.search.toLowerCase()))) return false;
+    if (st.filters.style.size && !st.filters.style.has(b.style)) return false;
+    if (st.filters.era.size && !st.filters.era.has(getEra(b.year))) return false;
+    if (st.filters.unesco && !b.unesco) return false;
+    if (st.filters.tours && !b.tours) return false;
+    return true;
+  });
+
+  list.forEach(b => {
+    const el = document.createElement('div');
+    el.className = 'marker-wrap';
+
+    const circle = document.createElement('div');
+    circle.className = 'marker-circle';
+    circle.style.borderColor = STYLE_COLORS[b.style] || '#5a4a38';
+    const img = document.createElement('img');
+    img.src = b.img;
+    img.alt = b.name;
+    img.loading = 'lazy';
+    circle.appendChild(img);
+    el.appendChild(circle);
+
+    const lbl = document.createElement('div');
+    lbl.className = 'marker-label';
+    lbl.textContent = b.name.length > 22 ? b.name.substring(0,20)+'…' : b.name;
+    el.appendChild(lbl);
+
+    const marker = new mapboxgl.Marker({ element:el, anchor:'center' })
+      .setLngLat([b.lng, b.lat]).addTo(map);
+
+    marker.setPopup(new mapboxgl.Popup({ offset:35, closeButton:true, maxWidth:'300px', focusAfterOpen:false }).setHTML(popupHTML(b)));
+
+    markers.push({ marker, data:b });
+  });
+
+  document.getElementById('visible-count').textContent = list.length;
+  document.getElementById('total-count').textContent = BUILDINGS.length;
+}
+
+// ============================================================
+// EVENTS
+// ============================================================
+function wire(id, key) {
+  document.getElementById(id).querySelectorAll('.filter-tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      const v = tag.dataset.value;
+      if (key==='unesco'||key==='tours') { st.filters[key]=!st.filters[key]; tag.classList.toggle('active'); }
+      else if (st.filters[key].has(v)) { st.filters[key].delete(v); tag.classList.remove('active'); }
+      else { st.filters[key].add(v); tag.classList.add('active'); }
+      build();
+    });
+  });
+}
+wire('style-filters','style');
+wire('era-filters','era');
+wire('designation-filters','unesco');
+wire('tours-filters','tours');
+
+document.getElementById('search').addEventListener('input', e => { st.search=e.target.value.trim(); build(); });
+
+document.getElementById('clear-all').addEventListener('click', () => {
+  st.search=''; st.filters={style:new Set(),era:new Set(),unesco:false,tours:false};
+  document.getElementById('search').value='';
+  document.querySelectorAll('.filter-tag.active').forEach(t=>t.classList.remove('active'));
+  build();
+});
+
+// ============================================================
+// TIME LAPSE
+// ============================================================
+let tlRunning = false, tlTimer = null;
+
+function stopTimelapse() {
+  tlRunning = false;
+  if (tlTimer) clearTimeout(tlTimer);
+  tlTimer = null;
+  document.getElementById('tl-overlay').classList.remove('active');
+  document.getElementById('timelapse-btn').classList.remove('running');
+  document.getElementById('timelapse-btn').innerHTML = '<span class="tl-icon">▶</span> Virtual Time Lapse';
+  markers.forEach(m => {
+    m.marker.getElement().classList.remove('tl-highlight','tl-dim');
+  });
+}
+
+function startTimelapse() {
+  // Clear existing filters and reset
+  st.search=''; st.filters={style:new Set(),era:new Set(),unesco:false,tours:false};
+  document.getElementById('search').value='';
+  document.querySelectorAll('.filter-tag.active').forEach(t=>t.classList.remove('active'));
+
+  // Remove all markers
+  markers.forEach(m => m.marker.remove());
+  markers = [];
+
+  // Sort buildings chronologically
+  const sorted = [...BUILDINGS].sort((a,b) => a.year - b.year || a.name.localeCompare(b.name));
+  const total = sorted.length;
+
+  // Show overlay
+  const overlay = document.getElementById('tl-overlay');
+  const yearEl = document.getElementById('tl-year');
+  const nameEl = document.getElementById('tl-name');
+  const progressEl = document.getElementById('tl-progress');
+  const counterEl = document.getElementById('tl-counter');
+  overlay.classList.add('active');
+
+  const btn = document.getElementById('timelapse-btn');
+  btn.classList.add('running');
+  btn.innerHTML = '<span class="tl-icon">■</span> Stop Time Lapse';
+
+  tlRunning = true;
+
+  // Fit map to US bounds
+  map.flyTo({ center:[-96, 38], zoom:4, duration:800 });
+
+  let idx = 0;
+
+  function addNext() {
+    if (!tlRunning || idx >= total) {
+      // Finished — remove dim/highlight, keep all markers
+      if (tlRunning) {
+        setTimeout(() => {
+          markers.forEach(m => m.marker.getElement().classList.remove('tl-highlight','tl-dim'));
+          stopTimelapse();
+          document.getElementById('visible-count').textContent = markers.length;
+          document.getElementById('total-count').textContent = BUILDINGS.length;
+        }, 1500);
+      }
+      return;
+    }
+
+    const b = sorted[idx];
+
+    // Update overlay
+    yearEl.textContent = b.year;
+    nameEl.textContent = b.name;
+    progressEl.style.width = ((idx+1)/total*100)+'%';
+    counterEl.textContent = (idx+1)+' / '+total;
+
+    // Dim previous highlight
+    markers.forEach(m => {
+      m.marker.getElement().classList.remove('tl-highlight');
+      m.marker.getElement().classList.add('tl-dim');
+    });
+
+    // Create marker
+    const el = document.createElement('div');
+    el.className = 'marker-wrap tl-highlight';
+
+    const circle = document.createElement('div');
+    circle.className = 'marker-circle';
+    circle.style.borderColor = STYLE_COLORS[b.style] || '#5a4a38';
+    const img = document.createElement('img');
+    img.src = b.img;
+    img.alt = b.name;
+    img.loading = 'lazy';
+    circle.appendChild(img);
+    el.appendChild(circle);
+
+    const lbl = document.createElement('div');
+    lbl.className = 'marker-label';
+    lbl.textContent = b.name.length > 22 ? b.name.substring(0,20)+'…' : b.name;
+    el.appendChild(lbl);
+
+    const marker = new mapboxgl.Marker({ element:el, anchor:'center' })
+      .setLngLat([b.lng, b.lat]).addTo(map);
+
+    marker.setPopup(new mapboxgl.Popup({ offset:35, closeButton:true, maxWidth:'300px', focusAfterOpen:false }).setHTML(popupHTML(b)));
+
+    markers.push({ marker, data:b });
+    document.getElementById('visible-count').textContent = markers.length;
+
+    idx++;
+    tlTimer = setTimeout(addNext, 1500);
+  }
+
+  // Start after brief delay for map to settle
+  tlTimer = setTimeout(addNext, 600);
+}
+
+document.getElementById('timelapse-btn').addEventListener('click', () => {
+  if (tlRunning) { stopTimelapse(); build(); }
+  else { startTimelapse(); }
+});
+
+map.on('load', build);
+</script>
+</body>
+</html>
