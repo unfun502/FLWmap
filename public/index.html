@@ -497,6 +497,7 @@ function wire(id, key) {
       else if (st.filters[key].has(v)) { st.filters[key].delete(v); tag.classList.remove('active'); }
       else { st.filters[key].add(v); tag.classList.add('active'); }
       build();
+      window.umami?.track('filter', { type: key, value: v });
     });
   });
 }
@@ -629,7 +630,7 @@ function startTimelapse() {
 
 document.getElementById('timelapse-btn').addEventListener('click', () => {
   if (tlRunning) { stopTimelapse(); build(); }
-  else { startTimelapse(); }
+  else { startTimelapse(); window.umami?.track('timelapse_start'); }
 });
 
 map.on('load', build);
