@@ -1,6 +1,7 @@
 name = "flwmap"
 main = "worker.js"
 compatibility_date = "2025-02-16"
+workers_dev = false
 
 [site]
 bucket = "./public"
