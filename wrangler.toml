@@ -3,5 +3,8 @@ main = "worker.js"
 compatibility_date = "2025-02-16"
 workers_dev = false
 
+[vars]
+UMAMI_SITE_ID = "3cc3d1de-d42e-441d-8ad0-93e5bf5bcbc8"
+
 [site]
 bucket = "./public"
