@@ -2,7 +2,7 @@
   "name": "flwmap",
   "version": "1.0.0",
   "private": true,
-  "dependencies": {
-    "@cloudflare/kv-asset-handler": "^0.3.4"
+  "devDependencies": {
+    "wrangler": "^4.151.1"
   }
 }

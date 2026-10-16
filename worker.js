@@ -1,6 +1,9 @@
-import { getAssetFromKV } from '@cloudflare/kv-asset-handler';
-import manifestJSON from '__STATIC_CONTENT_MANIFEST';
-const assetManifest = JSON.parse(manifestJSON);
+/**
+ * Serves public/ from Workers Static Assets (binding ASSETS), adding security
+ * headers, HTML no-cache and Umami injection. Every request runs through here
+ * (run_worker_first in wrangler.toml); unknown paths get index.html from
+ * not_found_handling (the old SPA fallback). Asset reads are not KV operations.
+ */
 
 function addSecurityHeaders(headers) {
   headers.set('X-Content-Type-Options', 'nosniff');
@@ -25,33 +28,26 @@ function injectAnalytics(response, env) {
   return response;
 }
 
-export default {
-  async fetch(request, env, ctx) {
-    const event = { request, waitUntil: ctx.waitUntil.bind(ctx) };
-    const options = {
-      ASSET_NAMESPACE: env.__STATIC_CONTENT,
-      ASSET_MANIFEST: assetManifest,
-    };
+function isHtml(path, response) {
+  return (
+    !path.includes('.') ||
+    path.endsWith('.html') ||
+    (response.headers.get('content-type') || '').includes('text/html')
+  );
+}
 
-    try {
-      const response = await getAssetFromKV(event, options);
-      const headers = new Headers(response.headers);
-      addSecurityHeaders(headers);
-      return injectAnalytics(new Response(response.body, { status: response.status, headers }), env);
-    } catch (e) {
-      // SPA fallback
-      try {
-        const fallbackEvent = {
-          request: new Request(new URL(request.url).origin + '/index.html', request),
-          waitUntil: ctx.waitUntil.bind(ctx),
-        };
-        const fallback = await getAssetFromKV(fallbackEvent, options);
-        const headers = new Headers(fallback.headers);
-        addSecurityHeaders(headers);
-        return injectAnalytics(new Response(fallback.body, { status: 200, headers }), env);
-      } catch {
-        return new Response('Not Found', { status: 404 });
-      }
-    }
+export default {
+  async fetch(request, env) {
+    const path = new URL(request.url).pathname;
+    const asset = await env.ASSETS.fetch(request);
+    const headers = new Headers(asset.headers);
+    addSecurityHeaders(headers);
+    if (isHtml(path, asset)) headers.set('Cache-Control', 'no-cache');
+    const response = new Response(asset.body, {
+      status: asset.status,
+      statusText: asset.statusText,
+      headers,
+    });
+    return injectAnalytics(response, env);
   },
 };

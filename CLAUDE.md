@@ -17,7 +17,7 @@ Plain HTML/CSS/JS (single-file app), no build step, Cloudflare Workers
 flwmap.devlab502.net (custom domain on Workers)
 
 ## Build & Deploy
-- No build step — static HTML served by Worker via `@cloudflare/kv-asset-handler`
+- No build step — static HTML served by Worker via Workers Static Assets (`[assets]` binding `ASSETS`, `run_worker_first = true`)
 - Deploys via GitHub Actions → `wrangler deploy` on push to main
 - Worker entry point: `worker.js`
 - Static files served from `public/` directory

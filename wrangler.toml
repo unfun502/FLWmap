@@ -6,5 +6,11 @@ workers_dev = false
 [vars]
 UMAMI_SITE_ID = "3cc3d1de-d42e-441d-8ad0-93e5bf5bcbc8"
 
-[site]
-bucket = "./public"
+# Workers Static Assets (not legacy Workers Sites): asset reads aren't KV
+# operations, so scanner traffic doesn't burn the KV quota. Every request runs
+# through worker.js so it can add security/cache headers and inject Umami.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
