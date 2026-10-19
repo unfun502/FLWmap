@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "worker",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/wrangler/bin/wrangler.js", "dev", "--port", "8801", "--ip", "127.0.0.1", "--var", "UMAMI_SITE_ID:test-site-id"],
+      "port": 8801
+    }
+  ]
+}
