@@ -181,6 +181,16 @@
   .timelapse-btn.running { background:#a0522d; color:#faf6ee; border-style:solid; }
   .timelapse-btn .tl-icon { font-size:10px; }
 
+  /* Shown when the browser can't run WebGL */
+  .map-unavailable {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    max-width:360px; text-align:center;
+    background:rgba(59,50,42,0.88); border-radius:14px; padding:24px 28px;
+    border:2px solid #c49a6a; box-shadow:0 6px 30px rgba(0,0,0,0.4);
+  }
+  .map-unavailable h2 { font:700 22px/1.2 'Playfair Display',Georgia,serif; color:#f2ead8; margin-bottom:10px; }
+  .map-unavailable p { font-size:14px; line-height:1.5; color:#e8dfd0; }
+
   /* Time Lapse Overlay */
   .tl-overlay {
     display:none; position:absolute; top:20px; left:50%; transform:translateX(-50%);
@@ -425,12 +435,22 @@ const st = { filters:{ style:new Set(), era:new Set(), unesco:false, tours:false
 // MAP
 // ============================================================
 mapboxgl.accessToken = 'pk.eyJ1IjoiZGFuaWVsc2FuZGVycyIsImEiOiJjbW1hMzF4dzEwOXU5MnVwdnpkZXZkZzlpIn0.zhIXyNTEfz9sqtTrYODhuQ';
-const map = new mapboxgl.Map({
-  container:'map',
-  style:'mapbox://styles/danielsanders/cmaspb28y006u01s33gzfcgig',
-  center:[-96,38], zoom:4, attributionControl:true
-});
-map.addControl(new mapboxgl.NavigationControl(),'bottom-right');
+// Mapbox throws if the browser can't run WebGL (old GPU, hardware acceleration off)
+let map = null;
+try {
+  map = new mapboxgl.Map({
+    container:'map',
+    style:'mapbox://styles/danielsanders/cmaspb28y006u01s33gzfcgig',
+    center:[-96,38], zoom:4, attributionControl:true
+  });
+  map.addControl(new mapboxgl.NavigationControl(),'bottom-right');
+} catch (err) {
+  const msg = document.createElement('div');
+  msg.className = 'map-unavailable';
+  msg.innerHTML = '<h2>The map couldn’t load</h2><p>Your browser can’t display the interactive map (it needs WebGL). Try turning on hardware acceleration in your browser settings, or open this page in another browser.</p>';
+  document.getElementById('map').appendChild(msg);
+  window.umami?.track('map_unavailable');
+}
 
 // ============================================================
 // MARKERS
@@ -444,6 +464,7 @@ function popupHTML(b) {
 }
 
 function build() {
+  if (!map) return;
   markers.forEach(m => m.marker.remove());
   markers = [];
   const list = BUILDINGS.filter(b => {
@@ -629,11 +650,12 @@ function startTimelapse() {
 }
 
 document.getElementById('timelapse-btn').addEventListener('click', () => {
+  if (!map) return;
   if (tlRunning) { stopTimelapse(); build(); }
   else { startTimelapse(); window.umami?.track('timelapse_start'); }
 });
 
-map.on('load', build);
+if (map) map.on('load', build);
 </script>
 </body>
 </html>
